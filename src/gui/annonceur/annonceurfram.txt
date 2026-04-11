@@ -1,0 +1,334 @@
+package gui.annonceur;
+
+import config.DatabaseConnection;
+import dao.AnnonceDAO;
+import dao.EstimationDAO;
+import dao.ProduitDAO;
+import model.Annonce;
+import model.Estimation;
+import model.Produit;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+import java.util.List;
+
+public class AnnonceurFrame extends JFrame {
+
+    private int idAnnonceur;
+
+    private JTable tableProduits;
+    private JTable tableAnnonces;
+    private JTable tablePropositions;
+
+    private DefaultTableModel modelProduits;
+    private DefaultTableModel modelAnnonces;
+    private DefaultTableModel modelPropositions;
+
+    private JTextField fieldTitre;
+    private JTextField fieldDescription;
+    private JComboBox<String> comboEtat;
+    private JTextField fieldPrix;
+    private JComboBox<Integer> comboCategorie;
+
+    private JButton btnSoumettre;
+    private JButton btnRefreshAnnonces;
+    private JButton btnAccepterEstimation;
+    private JButton btnRefuserEstimation;
+    private JButton btnVoirPropositions;
+
+    private ProduitDAO produitDAO = new ProduitDAO();
+    private AnnonceDAO annonceDAO = new AnnonceDAO();
+    private EstimationDAO estimationDAO = new EstimationDAO();
+
+    public AnnonceurFrame(int idAnnonceur) {
+        super("Interface Annonceur");
+        this.idAnnonceur = idAnnonceur;
+
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(900, 700);
+        setLayout(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.insets = new Insets(5, 5, 5, 5);
+
+        // ===== PANEL SOUMETTRE UN PRODUIT =====
+        JPanel panelSoumettre = new JPanel(new GridBagLayout());
+        panelSoumettre.setBorder(BorderFactory.createTitledBorder("Soumettre un produit"));
+        GridBagConstraints cs = new GridBagConstraints();
+        cs.fill = GridBagConstraints.HORIZONTAL;
+        cs.insets = new Insets(3, 3, 3, 3);
+
+        fieldTitre = new JTextField(20);
+        fieldDescription = new JTextField(20);
+        comboEtat = new JComboBox<>(new String[]{"excellent", "good", "fair"});
+        fieldPrix = new JTextField(20);
+        comboCategorie = new JComboBox<>(loadCategories());
+        btnSoumettre = new JButton("Soumettre");
+
+        cs.gridx = 0; cs.gridy = 0;
+        panelSoumettre.add(new JLabel("Titre :"), cs);
+        cs.gridx = 1;
+        panelSoumettre.add(fieldTitre, cs);
+
+        cs.gridx = 0; cs.gridy = 1;
+        panelSoumettre.add(new JLabel("Description :"), cs);
+        cs.gridx = 1;
+        panelSoumettre.add(fieldDescription, cs);
+
+        cs.gridx = 0; cs.gridy = 2;
+        panelSoumettre.add(new JLabel("État :"), cs);
+        cs.gridx = 1;
+        panelSoumettre.add(comboEtat, cs);
+
+        cs.gridx = 0; cs.gridy = 3;
+        panelSoumettre.add(new JLabel("Prix souhaité :"), cs);
+        cs.gridx = 1;
+        panelSoumettre.add(fieldPrix, cs);
+
+        cs.gridx = 0; cs.gridy = 4;
+        panelSoumettre.add(new JLabel("Catégorie :"), cs);
+        cs.gridx = 1;
+        panelSoumettre.add(comboCategorie, cs);
+
+        cs.gridx = 0; cs.gridy = 5; cs.gridwidth = 2;
+        panelSoumettre.add(btnSoumettre, cs);
+
+        c.gridx = 0; c.gridy = 0; c.weightx = 1; c.weighty = 0.3;
+        add(panelSoumettre, c);
+
+        // ===== PANEL MES ANNONCES =====
+        JPanel panelAnnonces = new JPanel(new BorderLayout());
+        panelAnnonces.setBorder(BorderFactory.createTitledBorder("Mes annonces"));
+
+        modelAnnonces = new DefaultTableModel(
+                new String[]{"ID", "Produit", "Prix souhaité", "Statut"}, 0);
+        tableAnnonces = new JTable(modelAnnonces);
+
+        JPanel panelBtnsAnnonces = new JPanel(new FlowLayout());
+        btnRefreshAnnonces = new JButton("Rafraîchir");
+        btnAccepterEstimation = new JButton("Accepter estimation");
+        btnRefuserEstimation = new JButton("Refuser estimation");
+        btnVoirPropositions = new JButton("Voir propositions");
+
+        panelBtnsAnnonces.add(btnRefreshAnnonces);
+        panelBtnsAnnonces.add(btnAccepterEstimation);
+        panelBtnsAnnonces.add(btnRefuserEstimation);
+        panelBtnsAnnonces.add(btnVoirPropositions);
+
+        panelAnnonces.add(new JScrollPane(tableAnnonces), BorderLayout.CENTER);
+        panelAnnonces.add(panelBtnsAnnonces, BorderLayout.SOUTH);
+
+        c.gridx = 0; c.gridy = 1; c.weightx = 1; c.weighty = 0.35;
+        add(panelAnnonces, c);
+
+        // ===== PANEL PROPOSITIONS =====
+        JPanel panelPropositions = new JPanel(new BorderLayout());
+        panelPropositions.setBorder(BorderFactory.createTitledBorder("Propositions reçues"));
+
+        modelPropositions = new DefaultTableModel(
+                new String[]{"ID Proposition", "Montant", "Date", "Statut", "Acheteur"}, 0);
+        tablePropositions = new JTable(modelPropositions);
+        panelPropositions.add(new JScrollPane(tablePropositions), BorderLayout.CENTER);
+
+        c.gridx = 0; c.gridy = 2; c.weightx = 1; c.weighty = 0.35;
+        add(panelPropositions, c);
+
+        // ===== LISTENERS =====
+        btnSoumettre.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                soumettreProduire();
+            }
+        });
+
+        btnRefreshAnnonces.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                refreshAnnonces();
+            }
+        });
+
+        btnAccepterEstimation.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                accepterEstimation();
+            }
+        });
+
+        btnRefuserEstimation.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                refuserEstimation();
+            }
+        });
+
+        btnVoirPropositions.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                voirPropositions();
+            }
+        });
+
+        refreshAnnonces();
+        setVisible(true);
+    }
+
+    private Integer[] loadCategories() {
+        try {
+            String query = "SELECT id_category FROM categorie";
+            PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(query);
+            ResultSet rs = stmt.executeQuery();
+            java.util.List<Integer> ids = new java.util.ArrayList<>();
+            while (rs.next()) ids.add(rs.getInt("id_category"));
+            return ids.toArray(new Integer[0]);
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new Integer[]{};
+        }
+    }
+
+    private void soumettreProduire() {
+        String titre = fieldTitre.getText().trim();
+        String description = fieldDescription.getText().trim();
+        String etat = (String) comboEtat.getSelectedItem();
+        String prixStr = fieldPrix.getText().trim();
+        Integer idCategorie = (Integer) comboCategorie.getSelectedItem();
+
+        if (titre.isEmpty() || prixStr.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Titre et prix sont obligatoires.");
+            return;
+        }
+
+        double prix = Double.parseDouble(prixStr);
+        produitDAO.insertProduit(titre, description, etat, idAnnonceur, idCategorie);
+
+        // recuperer le dernier produit inseré
+        List<Produit> produits = produitDAO.getProduitsByAnnonceur(idAnnonceur);
+        Produit dernierProduit = produits.get(produits.size() - 1);
+
+        annonceDAO.insertAnnonce(dernierProduit.getIdProduit(), prix);
+
+        // recuperer la dernière annonce
+        List<Annonce> annonces = getAnnoncesAnnonceur();
+        Annonce derniereAnnonce = annonces.get(annonces.size() - 1);
+
+        // ouvrir le popup expert
+        EstimationPopup popup = new EstimationPopup(
+                AnnonceurFrame.this,
+                derniereAnnonce.getIdAnnonce(),
+                idAnnonceur
+        );
+        popup.setVisible(true);
+
+        refreshAnnonces();
+        JOptionPane.showMessageDialog(this, "Produit soumis avec succès !");
+        fieldTitre.setText("");
+        fieldDescription.setText("");
+        fieldPrix.setText("");
+    }
+
+    private List<Annonce> getAnnoncesAnnonceur() {
+        List<Annonce> annonces = new java.util.ArrayList<>();
+        String query = "SELECT a.* FROM annonce a JOIN product p ON a.id_product = p.id_product WHERE p.id_annonceur = ?";
+        try (PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(query)) {
+            stmt.setInt(1, idAnnonceur);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                annonces.add(new Annonce(
+                        rs.getInt("id_annonce"),
+                        rs.getInt("id_product"),
+                        rs.getDouble("proposed_price"),
+                        rs.getString("statut")
+                ));
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return annonces;
+    }
+
+    private void refreshAnnonces() {
+        modelAnnonces.setRowCount(0);
+        String query = "SELECT a.id_annonce, p.title, a.proposed_price, a.statut " +
+                "FROM annonce a JOIN product p ON a.id_product = p.id_product " +
+                "WHERE p.id_annonceur = ?";
+        try (PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(query)) {
+            stmt.setInt(1, idAnnonceur);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                modelAnnonces.addRow(new Object[]{
+                        rs.getInt("id_annonce"),
+                        rs.getString("title"),
+                        rs.getDouble("proposed_price"),
+                        rs.getString("statut")
+                });
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private void accepterEstimation() {
+        int row = tableAnnonces.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Sélectionnez une annonce.");
+            return;
+        }
+        int idAnnonce = (int) modelAnnonces.getValueAt(row, 0);
+        List<Estimation> estimations = estimationDAO.getEstimationsByAnnonce(idAnnonce);
+        if (estimations.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Aucune estimation pour cette annonce.");
+            return;
+        }
+        Estimation estimation = estimations.get(estimations.size() - 1);
+        estimationDAO.updateStatut(estimation.getIdEstimation(), "acceptee");
+        annonceDAO.updateStatut(idAnnonce, "publiee");
+        refreshAnnonces();
+        JOptionPane.showMessageDialog(this, "Estimation acceptée ! Annonce publiée.");
+    }
+
+    private void refuserEstimation() {
+        int row = tableAnnonces.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Sélectionnez une annonce.");
+            return;
+        }
+        int idAnnonce = (int) modelAnnonces.getValueAt(row, 0);
+        List<Estimation> estimations = estimationDAO.getEstimationsByAnnonce(idAnnonce);
+        if (estimations.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Aucune estimation pour cette annonce.");
+            return;
+        }
+        Estimation estimation = estimations.get(estimations.size() - 1);
+        estimationDAO.updateStatut(estimation.getIdEstimation(), "refusee");
+        refreshAnnonces();
+        JOptionPane.showMessageDialog(this, "Estimation refusée.");
+    }
+
+    private void voirPropositions() {
+        int row = tableAnnonces.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this, "Sélectionnez une annonce.");
+            return;
+        }
+        int idAnnonce = (int) modelAnnonces.getValueAt(row, 0);
+        modelPropositions.setRowCount(0);
+        String query = "SELECT p.id_proposition, p.montant, p.date_proposition, p.statut, " +
+                "u.f_name, u.l_name FROM proposition p " +
+                "JOIN users u ON p.id_acheteur = u.id " +
+                "WHERE p.id_annonce = ?";
+        try (PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(query)) {
+            stmt.setInt(1, idAnnonce);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                modelPropositions.addRow(new Object[]{
+                        rs.getInt("id_proposition"),
+                        rs.getDouble("montant"),
+                        rs.getDate("date_proposition"),
+                        rs.getString("statut"),
+                        rs.getString("f_name") + " " + rs.getString("l_name")
+                });
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}

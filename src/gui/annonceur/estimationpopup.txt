@@ -1,0 +1,61 @@
+package gui.annonceur;
+
+import dao.EstimationDAO;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+
+public class EstimationPopup extends JDialog {
+
+    private JTextField fieldMontant;
+    private JTextField fieldCommentaire;
+    private JButton btnSoumettre;
+    private int idAnnonce;
+    private int idExpert;
+    private EstimationDAO estimationDAO = new EstimationDAO();
+
+    public EstimationPopup(JFrame parent, int idAnnonce, int idExpert) {
+        super(parent, "Estimation de l'expert", true);
+        this.idAnnonce = idAnnonce;
+        this.idExpert = idExpert;
+
+        setSize(400, 200);
+        setLocationRelativeTo(parent);
+        setLayout(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(5, 5, 5, 5);
+
+        fieldMontant = new JTextField(15);
+        fieldCommentaire = new JTextField(15);
+        btnSoumettre = new JButton("Soumettre estimation");
+
+        c.gridx = 0; c.gridy = 0;
+        add(new JLabel("Montant estimé :"), c);
+        c.gridx = 1;
+        add(fieldMontant, c);
+
+        c.gridx = 0; c.gridy = 1;
+        add(new JLabel("Commentaire :"), c);
+        c.gridx = 1;
+        add(fieldCommentaire, c);
+
+        c.gridx = 0; c.gridy = 2; c.gridwidth = 2;
+        add(btnSoumettre, c);
+
+        btnSoumettre.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String montantStr = fieldMontant.getText().trim();
+                if (montantStr.isEmpty()) {
+                    JOptionPane.showMessageDialog(EstimationPopup.this, "Montant obligatoire.");
+                    return;
+                }
+                double montant = Double.parseDouble(montantStr);
+                String commentaire = fieldCommentaire.getText().trim();
+                estimationDAO.insertEstimation(montant, commentaire, idAnnonce, idExpert);
+                JOptionPane.showMessageDialog(EstimationPopup.this, "Estimation soumise !");
+                dispose();
+            }
+        });
+    }
+}
