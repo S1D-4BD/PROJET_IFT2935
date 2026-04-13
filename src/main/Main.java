@@ -7,9 +7,10 @@ import model.Produit;
 import service.ServiceVente;
 
 import java.util.List;
-
+import gui.Home;
 
 import gui.annonceur.AnnonceurFrame;
+import gui.acheteur.AcheteurFrame;
 
 public class Main {
     /*
@@ -40,7 +41,9 @@ public class Main {
 
 
         public static void main(String[] args) {
-            new AnnonceurFrame(1);
+           // new AnnonceurFrame(1);
+            // new AcheteurFrame(1);
+            new Home();
         }
 
 
