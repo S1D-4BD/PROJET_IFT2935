@@ -6,9 +6,12 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
+//source : https://docs.oracle.com/javase/tutorial/jdbc/basics/retrieving.html
 public class AnnonceDAO {
 
     /// TOUTES LES METHODES quon peut call pour une annonce, c est pr chaque methode une query sql possible
+
     // very nice, on a vu les requetes preparees en ift3225, on prepare also pour eviter les injections sql
 
     public List<Annonce> getAnnoncesPubliees() {

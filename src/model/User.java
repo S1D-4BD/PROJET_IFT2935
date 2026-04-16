@@ -1,6 +1,6 @@
 package model;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 public class User {
     private int id;
@@ -10,9 +10,9 @@ public class User {
     private String address;
     private String email;
     private String psw;
-    private Date signupDate;
+    private LocalDateTime signupDate;
 
-    public User(int id, String fName, String lName, String phone, String address, String email, String psw, Date signupDate) {
+    public User(int id, String fName, String lName, String phone, String address, String email, String psw, LocalDateTime signupDate) {
         this.id = id;
         this.fName = fName;
         this.lName = lName;
@@ -88,11 +88,12 @@ public class User {
     }
     /////////////////////// /
 
-    public Date getSignupDate() {
+    public LocalDateTime getSignupDate() {
         return signupDate;
     }
-    public void setSignupDate(Date signupDate) {
-        this.signupDate = signupDate;
+    public void setSignupDate(LocalDateTime signupDate) {
+        LocalDateTime today = LocalDateTime.now();
+        this.signupDate = today;
     }
 
     @Override
